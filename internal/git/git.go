@@ -227,7 +227,7 @@ func WorktreeList(dir string) ([]Worktree, error) {
 func WorktreeAdd(dir, path, branch string, create bool, startPoint string) error {
 	args := []string{"worktree", "add", "-q"}
 	if create {
-		args = append(args, "-b", branch, path, startPoint)
+		args = append(args, "--no-track", "-b", branch, path, startPoint)
 	} else {
 		args = append(args, path, branch)
 	}

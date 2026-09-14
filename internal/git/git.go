@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -207,7 +208,7 @@ func WorktreeList(dir string) ([]Worktree, error) {
 			flush()
 		case strings.HasPrefix(line, "worktree "):
 			flush()
-			cur = &Worktree{Path: strings.TrimPrefix(line, "worktree ")}
+			cur = &Worktree{Path: pathx.Canonical(strings.TrimPrefix(line, "worktree "))}
 		case cur == nil:
 		case strings.HasPrefix(line, "branch "):
 			cur.Branch = strings.TrimPrefix(strings.TrimPrefix(line, "branch "), "refs/heads/")

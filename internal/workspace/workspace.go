@@ -3,6 +3,7 @@ package workspace
 
 import (
 	"errors"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,13 +28,10 @@ type Workspace struct {
 
 // Find walks up from start until it finds a .gibbon directory.
 func Find(start string) (*Workspace, error) {
-	dir, err := filepath.Abs(start)
-	if err != nil {
-		return nil, err
-	}
+	dir := pathx.Canonical(start)
 	for {
 		if fi, err := os.Stat(filepath.Join(dir, GibbonDirName)); err == nil && fi.IsDir() {
-			return &Workspace{Root: dir}, nil
+			return New(dir), nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -42,6 +40,10 @@ func Find(start string) (*Workspace, error) {
 		dir = parent
 	}
 }
+
+// New returns a workspace rooted at root. The root is canonicalised so that
+// paths reported by git (symlinks resolved, long names) compare equal to it.
+func New(root string) *Workspace { return &Workspace{Root: pathx.Canonical(root)} }
 
 // GibbonDir returns <root>/.gibbon.
 func (w *Workspace) GibbonDir() string { return filepath.Join(w.Root, GibbonDirName) }
@@ -68,11 +70,7 @@ func (w *Workspace) RepoFeatureDir(feature, id string) string {
 // FeatureContaining returns the feature whose directory contains path.
 // It returns false for paths outside the workspace, in base/, or in .gibbon/.
 func (w *Workspace) FeatureContaining(path string) (string, bool) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
-	}
-	rel, err := filepath.Rel(w.Root, abs)
+	rel, err := filepath.Rel(w.Root, pathx.Canonical(path))
 	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
 		return "", false
 	}

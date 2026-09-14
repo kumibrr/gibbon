@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,7 +50,7 @@ func removeOne(ws *workspace.Workspace, feature string, r discover.Repo, base st
 	}
 	var reg *git.Worktree
 	for i := range wts {
-		if filepath.Clean(wts[i].Path) == filepath.Clean(dest) {
+		if pathx.Same(wts[i].Path, dest) {
 			reg = &wts[i]
 		}
 	}

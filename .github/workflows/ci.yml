@@ -23,6 +23,11 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test -count=1 ./...
+      - name: Tests under a symlinked temp dir (mirrors macOS /var -> /private/var)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/real" && ln -s "$RUNNER_TEMP/real" "$RUNNER_TEMP/link"
+          TMPDIR="$RUNNER_TEMP/link" go test -count=1 ./...
 
   lint:
     runs-on: ubuntu-latest

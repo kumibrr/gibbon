@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -239,8 +240,7 @@ func looksLikeWorktreeOf(dir, repo string) bool {
 		return false
 	}
 	gitdir := strings.TrimPrefix(line, "gitdir: ")
-	rel, err := filepath.Rel(filepath.Join(repo, ".git", "worktrees"), gitdir)
-	return err == nil && !strings.HasPrefix(rel, "..")
+	return pathx.Within(filepath.Join(repo, ".git", "worktrees"), gitdir)
 }
 
 // templateRegexp turns "feat/{feature}" into ^feat/(.+)$. It returns nil when

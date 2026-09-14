@@ -3,6 +3,7 @@ package ops
 import (
 	"errors"
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,7 +38,7 @@ func Init(root string, o InitOptions) (InitReport, error) {
 	if err != nil {
 		return rep, err
 	}
-	ws := &workspace.Workspace{Root: root}
+	ws := workspace.New(root)
 
 	if _, err := os.Stat(ws.GibbonDir()); err == nil {
 		return rep, fmt.Errorf("%s already exists; this directory is already a gibbon workspace", ws.GibbonDir())
@@ -192,7 +193,8 @@ func repairMovedWorktrees(oldPath, newPath string) error {
 	}
 	var moved []string
 	for _, wt := range wts {
-		if rel, err := filepath.Rel(oldPath, wt.Path); err == nil && !strings.HasPrefix(rel, "..") {
+		if pathx.Within(oldPath, wt.Path) {
+			rel, _ := filepath.Rel(pathx.Canonical(oldPath), wt.Path)
 			moved = append(moved, filepath.Join(newPath, rel))
 		}
 	}

@@ -15,7 +15,7 @@ func newWS(t *testing.T) *workspace.Workspace {
 	if err := os.MkdirAll(filepath.Join(root, ".gibbon"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return &workspace.Workspace{Root: root}
+	return workspace.New(root)
 }
 
 func TestFind(t *testing.T) {

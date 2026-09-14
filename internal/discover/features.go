@@ -1,8 +1,8 @@
 package discover
 
 import (
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -100,11 +100,4 @@ func FeatureRepos(ws *workspace.Workspace, feature string, base []Repo) ([]Featu
 	return out, nil
 }
 
-func samePath(a, b string) bool {
-	ra, err1 := filepath.EvalSymlinks(a)
-	rb, err2 := filepath.EvalSymlinks(b)
-	if err1 == nil && err2 == nil {
-		return ra == rb
-	}
-	return filepath.Clean(a) == filepath.Clean(b)
-}
+func samePath(a, b string) bool { return pathx.Same(a, b) }

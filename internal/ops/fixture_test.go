@@ -20,7 +20,7 @@ type fixture struct {
 
 func newFixture(t *testing.T, ids ...string) *fixture {
 	root := t.TempDir()
-	f := &fixture{t: t, ws: &workspace.Workspace{Root: root}, origins: map[string]string{}}
+	f := &fixture{t: t, ws: workspace.New(root), origins: map[string]string{}}
 	for _, id := range ids {
 		_, origin := testutil.NewRepo(t, filepath.Join(root, filepath.FromSlash(id)), "main")
 		f.origins[id] = origin

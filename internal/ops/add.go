@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"path/filepath"
 
@@ -63,7 +64,7 @@ func addOne(ws *workspace.Workspace, feature string, r discover.Repo, branch, ba
 			return result(r.ID, "", err)
 		}
 		for _, wt := range wts {
-			if filepath.Clean(wt.Path) == filepath.Clean(dest) {
+			if pathx.Same(wt.Path, dest) {
 				return result(r.ID, "exists", nil)
 			}
 		}

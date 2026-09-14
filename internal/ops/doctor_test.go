@@ -44,7 +44,7 @@ func TestDoctorChecksAndFix(t *testing.T) {
 	testutil.NewRepo(t, f.wt("pay", "b2"), "main")
 	// 4. no-base: b2 also has no base -> covered by same stray
 	// 5. orphan branch: remove c's worktree via git, keep branch
-	testutil.Git(t, f.ws.RepoBaseDir("c"), "worktree", "remove", f.wt("pay", "c"))
+	testutil.Git(t, f.ws.RepoBaseDir("c"), "worktree", "remove", "--force", f.wt("pay", "c"))
 	// a branch matching no feature is not an orphan under the bare template
 	testutil.Git(t, f.ws.RepoBaseDir("d"), "branch", "unrelated", "main")
 	// 6. metadata without dir, dir without metadata

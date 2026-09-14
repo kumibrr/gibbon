@@ -33,7 +33,7 @@ func TestInitNestedTree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%+v", err, rep)
 	}
-	ws := &workspace.Workspace{Root: root}
+	ws := workspace.New(root)
 	for _, id := range []string{"api/users", "api/billing", "web"} {
 		if !git.IsRepo(ws.RepoBaseDir(id)) {
 			t.Errorf("%s not moved", id)
@@ -80,7 +80,7 @@ func TestInitBaseBranchFlag(t *testing.T) {
 	if _, err := ops.Init(root, ops.InitOptions{BaseBranch: "release"}); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := (&workspace.Workspace{Root: root}).LoadConfig()
+	cfg, _ := workspace.New(root).LoadConfig()
 	if cfg.Repos["a"].BaseBranch != "release" {
 		t.Fatalf("%+v", cfg)
 	}

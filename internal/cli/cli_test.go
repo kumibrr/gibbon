@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -73,7 +74,7 @@ func TestEndToEnd(t *testing.T) {
 	if r.code != 0 {
 		t.Fatalf("feat -c: %s", r.out)
 	}
-	if got, _ := os.ReadFile(cdFile); strings.TrimSpace(string(got)) != filepath.Join(root, "pay") {
+	if got, _ := os.ReadFile(cdFile); !pathx.Same(strings.TrimSpace(string(got)), filepath.Join(root, "pay")) {
 		t.Fatalf("cd file %q", got)
 	}
 	if r := gibbon(t, root, nil, "feat", "-c", "bad/name"); r.code == 0 {
@@ -145,7 +146,7 @@ func TestEndToEnd(t *testing.T) {
 
 	// switch prints path
 	r = gibbon(t, root, nil, "feat", "switch", "pay")
-	if r.code != 0 || strings.TrimSpace(r.out) != feat {
+	if r.code != 0 || !pathx.Same(strings.TrimSpace(r.out), feat) {
 		t.Fatalf("switch: %s", r.out)
 	}
 	if r := gibbon(t, root, nil, "feat", "switch", "nope"); r.code == 0 {
@@ -158,7 +159,7 @@ func TestEndToEnd(t *testing.T) {
 	if r.code != 0 {
 		t.Fatalf("prune: %s", r.out)
 	}
-	if got, _ := os.ReadFile(cdFile2); strings.TrimSpace(string(got)) != root {
+	if got, _ := os.ReadFile(cdFile2); !pathx.Same(strings.TrimSpace(string(got)), root) {
 		t.Fatalf("prune cd %q", got)
 	}
 	if testutil.Exists(feat) {

@@ -78,7 +78,7 @@ func TestResolve(t *testing.T) {
 
 func TestFeaturesAndFeatureRepos(t *testing.T) {
 	root := t.TempDir()
-	ws := &workspace.Workspace{Root: root}
+	ws := workspace.New(root)
 	os.MkdirAll(ws.GibbonDir(), 0o755)
 	users, _ := testutil.NewRepo(t, ws.RepoBaseDir("api/users"), "main")
 	testutil.NewRepo(t, ws.RepoBaseDir("web"), "main")

@@ -15,6 +15,9 @@ import (
 	"github.com/kumibrr/gibbon/internal/workspace"
 )
 
+// version is set at build time via -ldflags "-X github.com/kumibrr/gibbon/internal/cli.version=v1.2.3".
+var version = "dev"
+
 // errFailed signals a non-zero exit after results were already printed.
 var errFailed = errors.New("some repos failed")
 
@@ -52,6 +55,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 func (a *app) rootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gibbon",
+		Version:       version,
 		Short:         "Manage multirepo feature worktrees",
 		Long:          "gibbon lays a workspace out as <feature>/<repo> worktrees over primary clones in base/.",
 		SilenceUsage:  true,

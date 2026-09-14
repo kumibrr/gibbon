@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -11,6 +12,9 @@ import (
 )
 
 func TestWrapperChangesDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX wrapper is not exercised on windows")
+	}
 	script, err := shell.Script("bash")
 	if err != nil {
 		t.Fatal(err)

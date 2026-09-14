@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,6 +20,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	binary = filepath.Join(dir, "gibbon")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.Command("go", "build", "-o", binary, "../../cmd/gibbon")
 	if out, err := build.CombinedOutput(); err != nil {
 		panic(string(out))
@@ -170,5 +174,12 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if r := gibbon(t, root, nil, "shell-init", "bash"); r.code != 0 || !strings.Contains(r.out, "gibbon()") {
 		t.Fatalf("shell-init: %s", r.out)
+	}
+}
+
+func TestVersionFlag(t *testing.T) {
+	r := gibbon(t, t.TempDir(), nil, "--version")
+	if r.code != 0 || !strings.Contains(r.out, "gibbon version dev") {
+		t.Fatalf("--version: code=%d out=%q", r.code, r.out)
 	}
 }

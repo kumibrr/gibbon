@@ -1,4 +1,4 @@
-.PHONY: build test install vet fmt
+.PHONY: build test install vet fmt dist
 
 build:
 	go build -o gibbon ./cmd/gibbon
@@ -14,3 +14,6 @@ fmt:
 
 install:
 	go install ./cmd/gibbon
+
+dist:
+	scripts/build-release.sh

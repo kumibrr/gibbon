@@ -23,20 +23,40 @@ Group folders like `api/` are just organisation; gibbon mirrors them.
 
 ## Install
 
-Requires `git` on PATH. Go is pinned in `.mise.toml`.
+Requires `git` on PATH.
+
+### From a release
+
+Download the archive for your platform from the
+[releases page](https://github.com/kumibrr/gibbon/releases), verify it against
+`checksums.txt`, and put the binary on your PATH. Builds are published for
+Windows, Linux and macOS on amd64 and arm64. Check with `gibbon --version`.
+
+### From source
+
+Go is pinned in `.mise.toml`.
 
 ```sh
 mise install
 make install            # go install ./cmd/gibbon
+make dist               # cross-compile every platform into dist/
 ```
+
+### Releasing
+
+Push a tag like `v1.2.0`. The `Release` workflow runs the tests, builds every
+platform, and publishes a GitHub release with archives and checksums. The `CI`
+workflow runs vet, tests and gofmt on Windows, Linux and macOS for every push
+and pull request.
 
 Add the shell wrapper so `feat -c`, `feat switch` and `feat prune` can `cd`:
 
 ```sh
-eval "$(gibbon shell-init bash)"   # or zsh
+eval "$(gibbon shell-init bash)"   # or zsh; on Windows use Git Bash
 ```
 
 Without the wrapper every command still works; `feat switch` prints the path.
+There is no PowerShell or cmd wrapper yet.
 
 ## Commands
 

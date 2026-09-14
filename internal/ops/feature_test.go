@@ -103,9 +103,9 @@ func TestPruneBlockers(t *testing.T) {
 	f := newFixture(t, "a", "b", "c")
 	f.feature("pay")
 	f.mustOK(ops.Add(f.ws, "pay", f.repos("a", "b", "c"), ops.AddOptions{}))
-	testutil.WriteFile(t, f.wt("pay", "a")+"/dirty.txt", "x")                // dirty
-	testutil.Commit(t, f.wt("pay", "b"), "b.txt", "x", "unpushed")           // no upstream, ahead of base
-	testutil.Commit(t, f.wt("pay", "c"), "c.txt", "x", "pushed")             // pushed but unmerged
+	testutil.WriteFile(t, f.wt("pay", "a")+"/dirty.txt", "x")      // dirty
+	testutil.Commit(t, f.wt("pay", "b"), "b.txt", "x", "unpushed") // no upstream, ahead of base
+	testutil.Commit(t, f.wt("pay", "c"), "c.txt", "x", "pushed")   // pushed but unmerged
 	testutil.Git(t, f.wt("pay", "c"), "push", "-q", "-u", "origin", "pay")
 
 	plan, err := ops.PlanPrune(f.ws, "pay", 4)

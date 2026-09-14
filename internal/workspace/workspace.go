@@ -56,7 +56,9 @@ func (w *Workspace) FeaturesDir() string { return filepath.Join(w.GibbonDir(), f
 func (w *Workspace) FeatureDir(name string) string { return filepath.Join(w.Root, name) }
 
 // RepoBaseDir returns <root>/base/<id>.
-func (w *Workspace) RepoBaseDir(id string) string { return filepath.Join(w.BaseDir(), filepath.FromSlash(id)) }
+func (w *Workspace) RepoBaseDir(id string) string {
+	return filepath.Join(w.BaseDir(), filepath.FromSlash(id))
+}
 
 // RepoFeatureDir returns <root>/<feature>/<id>.
 func (w *Workspace) RepoFeatureDir(feature, id string) string {

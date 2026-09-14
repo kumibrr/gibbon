@@ -1,11 +1,13 @@
 package ops_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/kumibrr/gibbon/internal/git"
 	"github.com/kumibrr/gibbon/internal/ops"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"github.com/kumibrr/gibbon/internal/testutil"
 )
 
@@ -152,5 +154,31 @@ func TestPruneMergedIntoRemoteBaseIsClean(t *testing.T) {
 	plan, _ := ops.PlanPrune(f.ws, "pay", 4)
 	if plan.Blocked {
 		t.Fatalf("merged into origin/main should not block: %+v", plan.Checks)
+	}
+}
+
+// Windows cannot delete the directory a process is running in; prune must
+// step out of the feature first. Run from inside a worktree to cover it.
+func TestPruneFromInsideFeature(t *testing.T) {
+	f := newFixture(t, "a")
+	f.feature("pay")
+	f.mustOK(ops.Add(f.ws, "pay", f.repos("a"), ops.AddOptions{}))
+	orig, _ := os.Getwd()
+	t.Cleanup(func() { os.Chdir(orig) })
+	if err := os.Chdir(f.wt("pay", "a")); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := ops.PlanPrune(f.ws, "pay", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ops.ExecutePrune(f.ws, plan, false, 2); err != nil {
+		t.Fatal(err)
+	}
+	if testutil.Exists(f.ws.FeatureDir("pay")) {
+		t.Fatal("feature dir still exists")
+	}
+	if cwd, _ := os.Getwd(); !pathx.Same(cwd, f.ws.Root) {
+		t.Fatalf("cwd should be workspace root, got %s", cwd)
 	}
 }

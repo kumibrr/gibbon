@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"os"
 	"sort"
 	"time"
@@ -183,6 +184,13 @@ func ExecutePrune(ws *workspace.Workspace, plan PrunePlan, force bool, workers i
 	results := Remove(ws, plan.Feature, repos, RmOptions{DeleteBranch: true, Force: true, KeepDir: true, Workers: workers})
 	if AnyFailed(results) && !force {
 		return results, fmt.Errorf("some repos could not be removed; feature directory kept")
+	}
+	// Windows refuses to delete a directory that is the process's cwd, and
+	// running prune from inside the feature is the normal flow. Step out first.
+	if cwd, err := os.Getwd(); err == nil && pathx.Within(ws.FeatureDir(plan.Feature), cwd) {
+		if err := os.Chdir(ws.Root); err != nil {
+			return results, err
+		}
 	}
 	if err := os.RemoveAll(ws.FeatureDir(plan.Feature)); err != nil {
 		return results, err

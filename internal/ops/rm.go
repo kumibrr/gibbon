@@ -37,6 +37,7 @@ func Remove(ws *workspace.Workspace, feature string, repos []discover.Repo, o Rm
 	for i, r := range repos {
 		jobs[i] = job{r, bases[i]}
 	}
+	stepOutOf(ws.FeatureDir(feature), repos)
 	return pool.Map(jobs, o.Workers, func(j job) Result {
 		return removeOne(ws, feature, j.repo, j.base, o)
 	})
@@ -91,4 +92,19 @@ func removeOne(ws *workspace.Workspace, feature string, r discover.Repo, base st
 		RemoveEmptyParents(filepath.Dir(dest), ws.FeatureDir(feature))
 	}
 	return result(r.ID, action, nil, warnings...)
+}
+
+// stepOutOf moves the process cwd to featureDir when it is inside one of the
+// worktrees about to be removed. Windows cannot delete a process's cwd.
+func stepOutOf(featureDir string, repos []discover.Repo) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	for _, r := range repos {
+		if pathx.Within(filepath.Join(featureDir, filepath.FromSlash(r.ID)), cwd) {
+			_ = os.Chdir(featureDir)
+			return
+		}
+	}
 }

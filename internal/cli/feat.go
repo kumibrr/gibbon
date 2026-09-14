@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"strconv"
 	"strings"
 
@@ -186,7 +187,7 @@ func (a *app) featPruneCmd() *cobra.Command {
 			if execErr != nil {
 				return execErr
 			}
-			if strings.HasPrefix(a.cwd, ws.FeatureDir(feature)) {
+			if pathx.Within(ws.FeatureDir(feature), a.cwd) {
 				wrapped, _ := shell.RequestCD(ws.Root)
 				if !wrapped && !asJSON {
 					fmt.Fprintln(a.out, a.colour.Yellow("Your shell is inside the removed directory; cd "+ws.Root))

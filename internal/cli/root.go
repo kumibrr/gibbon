@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"io"
 	"os"
 
@@ -38,6 +39,7 @@ func Main(args []string) int {
 // Run executes the CLI with explicit streams; used by tests.
 func Run(args []string, stdout, stderr io.Writer) int {
 	cwd, _ := os.Getwd()
+	cwd = pathx.Canonical(cwd)
 	a := &app{out: stdout, err: stderr, colour: output.DetectColour(stdout), cwd: cwd}
 	root := a.rootCmd()
 	root.SetArgs(args)

@@ -158,3 +158,77 @@ func TestNewProgressNilForNonTerminal(t *testing.T) {
 		t.Fatal("expected nil reporter for buffer stdout")
 	}
 }
+
+// TestPrintResultsFallsBackToTableWhenReporterSawNoResults covers a
+// pre-Plan failure (e.g. feature missing, branch template error): ops
+// returns a []Result without ever driving the reporter through Plan/Finish.
+// printResults must not silently call finish() (which prints nothing for
+// total 0) and swallow the failure; it must fall back to the table.
+func TestPrintResultsFallsBackToTableWhenReporterSawNoResults(t *testing.T) {
+	var buf bytes.Buffer
+	a := &app{out: &buf, colour: false}
+	r := newReporter(&buf, false, 80)
+	err := a.printResults([]ops.Result{{Repo: "", Action: "failed", Err: errors.New(`feature "x" does not exist`)}}, false, r)
+	if !errors.Is(err, errFailed) {
+		t.Fatalf("expected errFailed, got %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "REPO") {
+		t.Fatalf("expected table header in output, got %q", out)
+	}
+	if !strings.Contains(out, "does not exist") {
+		t.Fatalf("expected failure detail in output, got %q", out)
+	}
+}
+
+func TestReporterSummaryUsesFinishedNotTotalWhenAborted(t *testing.T) {
+	r, buf := newTestReporter()
+	r.Plan(12)
+	r.Finish(ops.Result{Repo: "a", Action: "moved"})
+	r.Finish(ops.Result{Repo: "b", Action: "moved"})
+	r.Finish(ops.Result{Repo: "c", Err: errors.New("boom")})
+	r.finish()
+	got := lines(buf)
+	want := "fail  2 of 12 repos moved, 1 failed"
+	if len(got) == 0 || got[len(got)-1] != want {
+		t.Fatalf("got %q\nwant last line %q", got, want)
+	}
+}
+
+func TestReporterSummaryNoFailuresWhenAborted(t *testing.T) {
+	r, buf := newTestReporter()
+	r.Plan(12)
+	r.Finish(ops.Result{Repo: "a", Action: "moved"})
+	r.Finish(ops.Result{Repo: "b", Action: "moved"})
+	r.finish()
+	got := lines(buf)
+	want := "2 of 12 repos moved"
+	if len(got) == 0 || got[len(got)-1] != want {
+		t.Fatalf("got %q\nwant last line %q", got, want)
+	}
+}
+
+func TestProgressAllowedDumbTerminal(t *testing.T) {
+	cases := []struct {
+		term, noColor string
+		want          bool
+	}{
+		{"xterm-256color", "", true},
+		{"dumb", "", false},
+		{"", "", false},
+		{"xterm-256color", "1", false},
+	}
+	for _, c := range cases {
+		if got := progressAllowed(c.term, c.noColor); got != c.want {
+			t.Fatalf("progressAllowed(%q, %q) = %v, want %v", c.term, c.noColor, got, c.want)
+		}
+	}
+}
+
+func TestNewProgressNilOnDumbTerm(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	a := &app{out: &bytes.Buffer{}}
+	if a.newProgress(false) != nil {
+		t.Fatal("expected nil reporter on dumb terminal")
+	}
+}

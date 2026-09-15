@@ -28,9 +28,13 @@ func (a *app) initCmd() *cobra.Command {
 				output.JSON(a.out, rep)
 				return err
 			}
-			if p != nil {
+			switch {
+			case p != nil && err != nil:
+				p.stop()
+				fmt.Fprintln(a.out, a.colour.Red("rolled back: nothing was moved"))
+			case p != nil:
 				p.finish()
-			} else if len(rep.Moved) > 0 {
+			case len(rep.Moved) > 0:
 				rows := [][]string{}
 				for _, r := range rep.Moved {
 					rows = append(rows, []string{r.Repo, a.colour.Green(r.Action), a.colour.Yellow(joinWarnings(r.Warnings))})

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/kumibrr/gibbon/internal/ops"
@@ -23,22 +24,39 @@ type reporter struct {
 	w      io.Writer
 	colour output.Colour
 
-	mu      sync.Mutex
-	total   int
-	failed  int
-	warned  int
-	actions map[string]int // action word -> count, for clean results
-	done    bool
+	mu       sync.Mutex
+	total    int
+	finished int
+	failed   int
+	warned   int
+	actions  map[string]int // action word -> count, for clean results
+	done     bool
 }
 
 func newReporter(w io.Writer, c output.Colour, width int) *reporter {
 	return &reporter{sp: progress.New(w, width), w: w, colour: c, actions: map[string]int{}}
 }
 
+// progressAllowed reports whether a spinner should run given the terminal's
+// TERM and NO_COLOR environment values. Dumb or unset terminals, and
+// NO_COLOR being set, disable it.
+func progressAllowed(term, noColor string) bool {
+	if noColor != "" {
+		return false
+	}
+	if term == "" || term == "dumb" {
+		return false
+	}
+	return true
+}
+
 // newProgress returns a started reporter when stdout is a terminal and
 // JSON output is off; otherwise nil, which disables progress entirely.
 func (a *app) newProgress(asJSON bool) *reporter {
 	if asJSON || !output.IsTerminal(a.out) {
+		return nil
+	}
+	if !progressAllowed(os.Getenv("TERM"), os.Getenv("NO_COLOR")) {
 		return nil
 	}
 	r := newReporter(a.out, a.colour, output.TerminalWidth(a.out))
@@ -96,6 +114,7 @@ func (r *reporter) Finish(res ops.Result) {
 	r.sp.End(res.Repo)
 	r.mu.Lock()
 	total := r.total
+	r.finished++
 	switch {
 	case res.Err != nil:
 		r.failed++
@@ -127,6 +146,26 @@ func (r *reporter) stop() {
 	r.sp.Stop()
 }
 
+// sawResults reports whether Finish was ever called, i.e. the reporter was
+// actually driven through at least one repo. Nil-safe.
+func (r *reporter) sawResults() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.finished > 0
+}
+
+// log prints a permanent line above the spinner, or does nothing on a nil
+// receiver.
+func (r *reporter) log(line string) {
+	if r == nil {
+		return
+	}
+	r.sp.Log(line)
+}
+
 // finish stops the spinner and prints the summary line when the operation
 // covered more than streamEachUpTo repos. Idempotent.
 func (r *reporter) finish() {
@@ -141,10 +180,15 @@ func (r *reporter) finish() {
 		return
 	}
 	r.done = true
-	ok := r.total - r.failed
-	line := fmt.Sprintf("%d repos %s", r.total, r.verb())
-	if r.failed > 0 {
+	ok := r.finished - r.failed
+	var line string
+	switch {
+	case r.failed > 0:
 		line = fmt.Sprintf("%d of %d repos %s, %d failed", ok, r.total, r.verb(), r.failed)
+	case r.finished < r.total:
+		line = fmt.Sprintf("%d of %d repos %s", ok, r.total, r.verb())
+	default:
+		line = fmt.Sprintf("%d repos %s", r.total, r.verb())
 	}
 	if r.warned > 0 {
 		line += fmt.Sprintf(", %d with warnings", r.warned)

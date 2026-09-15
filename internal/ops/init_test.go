@@ -167,3 +167,29 @@ func TestInitRefusals(t *testing.T) {
 		}
 	})
 }
+
+func TestInitReportsProgress(t *testing.T) {
+	root := t.TempDir()
+	testutil.NewRepo(t, filepath.Join(root, "a"), "main")
+	testutil.NewRepo(t, filepath.Join(root, "b"), "main")
+	testutil.WriteFile(t, filepath.Join(root, "b", "dirty.txt"), "x\n")
+
+	rec := &recProgress{}
+	if _, err := ops.Init(root, ops.InitOptions{Progress: rec}); err != nil {
+		t.Fatal(err)
+	}
+	assertProgress(t, rec, 2, "a", "b")
+
+	warn := rec.index("warn b: has uncommitted changes")
+	if warn < 0 {
+		t.Fatalf("dirty warning not reported: %v", rec.events)
+	}
+	if !(rec.index("start b") < warn && warn < rec.index("finish b")) {
+		t.Fatalf("dirty warning not between start and finish of b: %v", rec.events)
+	}
+	for _, e := range rec.events {
+		if strings.HasPrefix(e, "warn a") {
+			t.Fatalf("unexpected warning for clean repo: %v", rec.events)
+		}
+	}
+}

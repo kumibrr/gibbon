@@ -121,6 +121,13 @@ the base branch. Creates group folders, then `git worktree add`. Per-repo
 failures are reported and do not abort the rest. Already-present repos are
 reported as no-ops.
 
+`--orphan PATH` adopts instead of creating: exactly one `REPO` is required,
+`PATH` must be a registered worktree of `base/REPO`, and `--branch` (if given)
+must match what it has checked out. The directory is relocated with
+`git worktree move`, so uncommitted changes travel with it; the result action
+is `adopted`. This is the opt-in way to bring a legacy `.worktrees/` entry
+under gibbon; `init` and `doctor` still never move them on their own.
+
 ### `gibbon rm REPO... [--delete-branch] [--force] [--feature F]`
 
 Removes the worktree and keeps the branch. Refuses on dirty unless `--force`.

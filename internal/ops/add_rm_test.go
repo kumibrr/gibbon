@@ -6,6 +6,7 @@ import (
 
 	"github.com/kumibrr/gibbon/internal/git"
 	"github.com/kumibrr/gibbon/internal/ops"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"github.com/kumibrr/gibbon/internal/testutil"
 )
 
@@ -152,5 +153,67 @@ func TestRemoveUnregisteredDirErrors(t *testing.T) {
 	}
 	if !exists(f.wt("pay", "a")) {
 		t.Fatal("dir was removed")
+	}
+}
+
+func TestAddOrphanAdoptsWorktree(t *testing.T) {
+	f := newFixture(t, "legacy", "other")
+	f.feature("pay")
+	// branch pay checked out in a stray legacy worktree, with committed and dirty work
+	legacyWT := f.ws.RepoBaseDir("legacy") + "/.worktrees/pay"
+	testutil.Git(t, f.ws.RepoBaseDir("legacy"), "worktree", "add", "-q", "-b", "pay", legacyWT, "main")
+	testutil.Commit(t, legacyWT, "work.txt", "x", "wip")
+	testutil.WriteFile(t, legacyWT+"/dirty.txt", "x")
+
+	// Without --orphan the checked-out branch cannot be added.
+	if rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{}); rs[0].Err == nil {
+		t.Fatal("expected failure: branch already checked out elsewhere")
+	}
+	// PATH must be a worktree of the named repo.
+	if rs := ops.Add(f.ws, "pay", f.repos("other"), ops.AddOptions{Orphan: legacyWT}); rs[0].Err == nil {
+		t.Fatal("worktree of another repo accepted")
+	}
+	if rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{Orphan: t.TempDir()}); rs[0].Err == nil {
+		t.Fatal("non-worktree path accepted")
+	}
+	// Only one repo per adoption.
+	if rs := ops.Add(f.ws, "pay", f.repos("legacy", "other"), ops.AddOptions{Orphan: legacyWT}); len(rs) != 1 || rs[0].Err == nil {
+		t.Fatalf("multiple repos accepted: %+v", rs)
+	}
+	// --branch must agree with what the orphan has checked out.
+	if rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{Orphan: legacyWT, Branch: "x"}); rs[0].Err == nil {
+		t.Fatal("branch mismatch accepted")
+	}
+	if !exists(legacyWT + "/dirty.txt") {
+		t.Fatal("refused adoption must leave the worktree in place")
+	}
+
+	rec := &recProgress{}
+	rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{Orphan: legacyWT, Progress: rec})
+	f.mustOK(rs)
+	assertProgress(t, rec, 1, "legacy")
+	if rs[0].Action != "adopted" {
+		t.Fatalf("%+v", rs[0])
+	}
+	if exists(legacyWT) {
+		t.Fatal("orphan directory should have moved")
+	}
+	if !exists(f.wt("pay", "legacy")+"/work.txt") || !exists(f.wt("pay", "legacy")+"/dirty.txt") {
+		t.Fatal("adopted content missing")
+	}
+	if b := testutil.Git(t, f.wt("pay", "legacy"), "rev-parse", "--abbrev-ref", "HEAD"); b != "pay" {
+		t.Fatalf("on %q", b)
+	}
+	wts, _ := git.WorktreeList(f.ws.RepoBaseDir("legacy"))
+	registered := false
+	for _, wt := range wts {
+		registered = registered || pathx.Same(wt.Path, f.wt("pay", "legacy"))
+	}
+	if !registered {
+		t.Fatalf("worktree not registered at new path: %+v", wts)
+	}
+	// destination already occupied
+	if rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{Orphan: f.wt("pay", "legacy")}); rs[0].Err == nil {
+		t.Fatalf("adopting into an occupied destination should fail: %+v", rs[0])
 	}
 }

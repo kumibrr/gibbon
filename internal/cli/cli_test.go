@@ -100,8 +100,23 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("add --feature: %s", r.out)
 	}
 
+	// adopt a stray worktree with --orphan
+	testutil.NewRepo(t, filepath.Join(root, "base", "stray"), "main")
+	strayWT := filepath.Join(root, "base", "stray", ".worktrees", "pay")
+	testutil.Git(t, filepath.Join(root, "base", "stray"), "worktree", "add", "-q", "-b", "pay", strayWT, "main")
+	if r := gibbon(t, feat, nil, "add", "stray", "web", "--orphan", strayWT); r.code == 0 {
+		t.Fatalf("--orphan with two repos accepted:\n%s", r.out)
+	}
+	if r := gibbon(t, feat, nil, "add", "--all", "--orphan", strayWT); r.code == 0 {
+		t.Fatalf("--orphan with --all accepted:\n%s", r.out)
+	}
+	r = gibbon(t, feat, nil, "add", "stray", "--orphan", strayWT)
+	if r.code != 0 || !strings.Contains(r.out, "adopted") || testutil.Exists(strayWT) || !testutil.Exists(filepath.Join(feat, "stray", "README.md")) {
+		t.Fatalf("add --orphan: %d\n%s", r.code, r.out)
+	}
+
 	r = gibbon(t, feat, nil, "feat")
-	if r.code != 0 || !strings.Contains(r.out, "pay") || !strings.Contains(r.out, "4") {
+	if r.code != 0 || !strings.Contains(r.out, "pay") || !strings.Contains(r.out, "5") {
 		t.Fatalf("feat list: %s", r.out)
 	}
 
@@ -114,7 +129,7 @@ func TestEndToEnd(t *testing.T) {
 	if err := json.Unmarshal([]byte(r.out), &rows); err != nil {
 		t.Fatalf("status json: %v\n%s", err, r.out)
 	}
-	if len(rows) != 4 {
+	if len(rows) != 5 {
 		t.Fatalf("status rows %d", len(rows))
 	}
 	for _, row := range rows {
@@ -134,7 +149,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal("branch should be kept after rm")
 	}
 
-	if r := gibbon(t, root, nil, "sync"); r.code != 0 || strings.Count(r.out, "up-to-date") != 4 {
+	if r := gibbon(t, root, nil, "sync"); r.code != 0 || strings.Count(r.out, "up-to-date") != 5 {
 		t.Fatalf("sync: %d\n%s", r.code, r.out)
 	}
 

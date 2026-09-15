@@ -88,8 +88,10 @@ func TestRemoveKeepsBranch(t *testing.T) {
 	f.mustOK(ops.Add(f.ws, "pay", f.repos("grp/a", "b"), ops.AddOptions{}))
 	testutil.Commit(t, f.wt("pay", "grp/a"), "a.txt", "x", "unpushed work")
 
-	rs := ops.Remove(f.ws, "pay", f.repos("grp/a"), ops.RmOptions{})
+	rec := &recProgress{}
+	rs := ops.Remove(f.ws, "pay", f.repos("grp/a"), ops.RmOptions{Progress: rec})
 	f.mustOK(rs)
+	assertProgress(t, rec, 1, "grp/a")
 	if rs[0].Action != "removed" {
 		t.Fatalf("%+v", rs[0])
 	}

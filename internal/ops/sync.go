@@ -11,8 +11,9 @@ import (
 
 // SyncOptions configures Sync.
 type SyncOptions struct {
-	Prune   bool
-	Workers int
+	Prune    bool
+	Workers  int
+	Progress Progress // optional; receives per-repo events
 }
 
 // Sync fetches every base clone and fast-forwards its base branch when the
@@ -34,7 +35,9 @@ func Sync(ws *workspace.Workspace, o SyncOptions) ([]Result, error) {
 	for i, r := range repos {
 		jobs[i] = job{r, bases[i]}
 	}
-	return pool.Map(jobs, o.Workers, func(j job) Result {
+	pg := notify{o.Progress}
+	pg.Plan(len(repos))
+	one := func(j job) Result {
 		r := j.repo
 		if !git.HasRemote(r.Path) {
 			return result(r.ID, "skipped: no origin", nil)
@@ -76,5 +79,9 @@ func Sync(ws *workspace.Workspace, o SyncOptions) ([]Result, error) {
 			return result(r.ID, "", err)
 		}
 		return result(r.ID, fmt.Sprintf("fast-forwarded %d commit(s)", behind), nil)
+	}
+	return pool.Map(jobs, o.Workers, func(j job) Result {
+		pg.Start(j.repo.ID)
+		return pg.Finish(one(j))
 	}), nil
 }

@@ -19,6 +19,7 @@ type RmOptions struct {
 	Force        bool
 	KeepDir      bool // used by prune: the whole feature dir is removed afterwards
 	Workers      int
+	Progress     Progress // optional; receives per-repo events
 }
 
 // Remove unregisters each repo's worktree from the feature. The branch is
@@ -38,8 +39,11 @@ func Remove(ws *workspace.Workspace, feature string, repos []discover.Repo, o Rm
 		jobs[i] = job{r, bases[i]}
 	}
 	stepOutOf(ws.FeatureDir(feature), repos)
+	pg := notify{o.Progress}
+	pg.Plan(len(repos))
 	return pool.Map(jobs, o.Workers, func(j job) Result {
-		return removeOne(ws, feature, j.repo, j.base, o)
+		pg.Start(j.repo.ID)
+		return pg.Finish(removeOne(ws, feature, j.repo, j.base, o))
 	})
 }
 

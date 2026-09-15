@@ -124,11 +124,13 @@ func (a *app) syncCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rs, err := ops.Sync(ws, ops.SyncOptions{Prune: prune, Workers: workers})
+			p := a.newProgress(asJSON)
+			defer p.stop()
+			rs, err := ops.Sync(ws, ops.SyncOptions{Prune: prune, Workers: workers, Progress: p})
 			if err != nil {
 				return err
 			}
-			return a.printResults(rs, asJSON)
+			return a.printResults(rs, asJSON, p)
 		},
 	}
 	cmd.Flags().BoolVar(&prune, "prune", false, "prune stale remote-tracking refs while fetching")

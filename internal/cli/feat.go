@@ -43,21 +43,31 @@ func (a *app) featCreate(name, from, template string, asJSON bool) error {
 	if err != nil {
 		return err
 	}
-	rs, err := ops.CreateFeature(ws, name, ops.CreateFeatureOptions{From: from, BranchTemplate: template, Workers: workers})
+	dir := ws.FeatureDir(name)
+	p := a.newProgress(asJSON)
+	defer p.stop()
+	if p != nil {
+		fmt.Fprintf(a.out, "Creating feature %s at %s\n", a.colour.Bold(name), dir)
+	}
+	rs, err := ops.CreateFeature(ws, name, ops.CreateFeatureOptions{From: from, BranchTemplate: template, Workers: workers, Progress: p})
 	if err != nil {
 		return err
 	}
-	dir := ws.FeatureDir(name)
 	wrapped, cdErr := shell.RequestCD(dir)
 	if cdErr != nil {
 		return cdErr
 	}
 	if asJSON {
-		return a.printResults(rs, true)
+		return a.printResults(rs, true, nil)
 	}
-	fmt.Fprintf(a.out, "Created feature %s at %s\n", a.colour.Bold(name), dir)
-	if err := a.printResults(rs, false); err != nil {
+	if p == nil {
+		fmt.Fprintf(a.out, "Created feature %s at %s\n", a.colour.Bold(name), dir)
+	}
+	if err := a.printResults(rs, false, p); err != nil {
 		return err
+	}
+	if p != nil {
+		fmt.Fprintf(a.out, "Created feature %s\n", a.colour.Bold(name))
 	}
 	if !wrapped {
 		fmt.Fprintln(a.out, a.colour.Dim("cd "+dir))
@@ -177,12 +187,16 @@ func (a *app) featPruneCmd() *cobra.Command {
 				}
 				return fmt.Errorf("feature %q has blockers; nothing was removed (use --force to override)", feature)
 			}
-			rs, execErr := ops.ExecutePrune(ws, plan, force, workers, nil)
+			p := a.newProgress(asJSON)
+			defer p.stop()
+			rs, execErr := ops.ExecutePrune(ws, plan, force, workers, p)
 			if asJSON {
 				output.JSON(a.out, map[string]any{"plan": plan, "results": rs, "error": errString(execErr)})
+			} else if p != nil {
+				p.finish()
 			} else if len(rs) > 0 {
 				fmt.Fprintln(a.out)
-				a.printResults(rs, false)
+				a.printResults(rs, false, nil)
 			}
 			if execErr != nil {
 				return execErr

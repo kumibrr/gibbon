@@ -184,3 +184,23 @@ func TestVersionFlag(t *testing.T) {
 		t.Fatalf("--version: code=%d out=%q", r.code, r.out)
 	}
 }
+
+func TestPipedOutputHasNoSpinnerSequences(t *testing.T) {
+	root := t.TempDir()
+	testutil.NewRepo(t, filepath.Join(root, "a"), "main")
+	testutil.NewRepo(t, filepath.Join(root, "b"), "main")
+
+	if r := gibbon(t, root, nil, "init"); r.code != 0 {
+		t.Fatalf("init: %d\n%s", r.code, r.out)
+	}
+	if r := gibbon(t, root, nil, "feat", "-c", "pay"); r.code != 0 {
+		t.Fatalf("feat -c: %d\n%s", r.code, r.out)
+	}
+	r := gibbon(t, filepath.Join(root, "pay"), nil, "add", "--all")
+	if strings.Contains(r.out, "\x1b[2K") || strings.Contains(r.out, "[=") {
+		t.Fatalf("spinner sequences leaked into piped output:\n%s", r.out)
+	}
+	if !strings.Contains(r.out, "REPO") {
+		t.Fatalf("table missing from piped output:\n%s", r.out)
+	}
+}

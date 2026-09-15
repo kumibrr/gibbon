@@ -46,8 +46,10 @@ name when unique (users), a glob (api/*), or a group folder (api/).`,
 			if err != nil {
 				return err
 			}
-			rs := ops.Add(ws, feat, repos, ops.AddOptions{Branch: branch, Workers: workers})
-			return a.printResults(rs, asJSON)
+			p := a.newProgress(asJSON)
+			defer p.stop()
+			rs := ops.Add(ws, feat, repos, ops.AddOptions{Branch: branch, Workers: workers, Progress: p})
+			return a.printResults(rs, asJSON, p)
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "add every repo in the workspace")
@@ -76,8 +78,10 @@ func (a *app) rmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rs := ops.Remove(ws, feat, repos, ops.RmOptions{DeleteBranch: deleteBranch, Force: force, Workers: workers})
-			return a.printResults(rs, asJSON)
+			p := a.newProgress(asJSON)
+			defer p.stop()
+			rs := ops.Remove(ws, feat, repos, ops.RmOptions{DeleteBranch: deleteBranch, Force: force, Workers: workers, Progress: p})
+			return a.printResults(rs, asJSON, p)
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "remove every repo from the feature")

@@ -21,12 +21,16 @@ func (a *app) initCmd() *cobra.Command {
 			if len(args) == 1 {
 				dir = args[0]
 			}
-			rep, err := ops.Init(dir, ops.InitOptions{BaseBranch: baseBranch})
+			p := a.newProgress(asJSON)
+			defer p.stop()
+			rep, err := ops.Init(dir, ops.InitOptions{BaseBranch: baseBranch, Progress: p})
 			if asJSON {
 				output.JSON(a.out, rep)
 				return err
 			}
-			if len(rep.Moved) > 0 {
+			if p != nil {
+				p.finish()
+			} else if len(rep.Moved) > 0 {
 				rows := [][]string{}
 				for _, r := range rep.Moved {
 					rows = append(rows, []string{r.Repo, a.colour.Green(r.Action), a.colour.Yellow(joinWarnings(r.Warnings))})
@@ -45,7 +49,7 @@ func (a *app) initCmd() *cobra.Command {
 					fmt.Fprintln(a.out, a.colour.Dim("  "+s))
 				}
 			}
-			if len(rep.Warnings) > 0 {
+			if p == nil && len(rep.Warnings) > 0 {
 				fmt.Fprintln(a.out, a.colour.Yellow("\nWarnings:"))
 				for _, w := range rep.Warnings {
 					fmt.Fprintln(a.out, a.colour.Yellow("  "+w))

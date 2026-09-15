@@ -31,7 +31,9 @@ func (a *app) initCmd() *cobra.Command {
 			switch {
 			case p != nil && err != nil:
 				p.stop()
-				fmt.Fprintln(a.out, a.colour.Red("rolled back: nothing was moved"))
+				if p.planned() {
+					fmt.Fprintln(a.out, a.colour.Red("rolled back: nothing was moved"))
+				}
 			case p != nil:
 				p.finish()
 			case len(rep.Moved) > 0:

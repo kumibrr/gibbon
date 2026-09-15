@@ -46,9 +46,7 @@ func (a *app) featCreate(name, from, template string, asJSON bool) error {
 	dir := ws.FeatureDir(name)
 	p := a.newProgress(asJSON)
 	defer p.stop()
-	if p != nil {
-		p.log(fmt.Sprintf("Creating feature %s at %s", a.colour.Bold(name), dir))
-	}
+	p.log(fmt.Sprintf("Creating feature %s at %s", a.colour.Bold(name), dir))
 	rs, err := ops.CreateFeature(ws, name, ops.CreateFeatureOptions{From: from, BranchTemplate: template, Workers: workers, Progress: p})
 	if err != nil {
 		return err

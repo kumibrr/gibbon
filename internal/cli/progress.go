@@ -157,6 +157,17 @@ func (r *reporter) sawResults() bool {
 	return r.finished > 0
 }
 
+// planned reports whether Plan was ever called with a positive total, i.e.
+// the operation actually got far enough to schedule work. Nil-safe.
+func (r *reporter) planned() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.total > 0
+}
+
 // log prints a permanent line above the spinner, or does nothing on a nil
 // receiver.
 func (r *reporter) log(line string) {

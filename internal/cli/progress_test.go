@@ -225,6 +225,21 @@ func TestProgressAllowedDumbTerminal(t *testing.T) {
 	}
 }
 
+func TestReporterPlanned(t *testing.T) {
+	r, _ := newTestReporter()
+	if r.planned() {
+		t.Fatal("expected planned() false before Plan")
+	}
+	r.Plan(1)
+	if !r.planned() {
+		t.Fatal("expected planned() true after Plan(1)")
+	}
+	var nilR *reporter
+	if nilR.planned() {
+		t.Fatal("expected nil *reporter planned() false")
+	}
+}
+
 func TestNewProgressNilOnDumbTerm(t *testing.T) {
 	t.Setenv("TERM", "dumb")
 	a := &app{out: &bytes.Buffer{}}

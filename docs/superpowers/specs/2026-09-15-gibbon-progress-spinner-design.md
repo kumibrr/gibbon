@@ -39,6 +39,8 @@ When stdout is a terminal and `--json` is not set:
   fail  api/orders: rename: permission denied
   ```
 
+  A repo that fails and also carries warnings prints `fail  <repo>: <error> (warnings: <warnings joined by "; ">)` so no warning is lost.
+
   Markers are `warn` and `fail`, padded to 6 columns, coloured yellow and
   red respectively via the existing `output.Colour`. There is no `ok`
   marker: clean lines are printed unprefixed.
@@ -53,9 +55,7 @@ When stdout is a terminal and `--json` is not set:
   ```
 
   The summary line carries the `fail` marker if any repo failed, `warn` if
-  none failed but some warned, and no marker otherwise. The verb is the most common
-  action word among the results (`moved`, `added`, `removed`, `fetched`,
-  ...); when actions differ, the line reads `12 repos done`.
+  none failed but some warned, and no marker otherwise. The verb is the action word shared by every clean result (`moved`, `created`, `fetched`, ...); when clean results carry different actions, or there are none, the line reads `12 repos done`. When some repos warned, the line ends with `, N with warnings`.
 
 - The final REPO/ACTION/DETAIL table is **not** printed in this mode; the
   streamed lines replace it. Trailing messages such as

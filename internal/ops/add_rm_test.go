@@ -6,6 +6,7 @@ import (
 
 	"github.com/kumibrr/gibbon/internal/git"
 	"github.com/kumibrr/gibbon/internal/ops"
+	"github.com/kumibrr/gibbon/internal/pathx"
 	"github.com/kumibrr/gibbon/internal/testutil"
 )
 
@@ -203,8 +204,13 @@ func TestAddOrphanAdoptsWorktree(t *testing.T) {
 	if b := testutil.Git(t, f.wt("pay", "legacy"), "rev-parse", "--abbrev-ref", "HEAD"); b != "pay" {
 		t.Fatalf("on %q", b)
 	}
-	if out := testutil.Git(t, f.ws.RepoBaseDir("legacy"), "worktree", "list", "--porcelain"); !strings.Contains(out, f.wt("pay", "legacy")) {
-		t.Fatalf("worktree not registered at new path:\n%s", out)
+	wts, _ := git.WorktreeList(f.ws.RepoBaseDir("legacy"))
+	registered := false
+	for _, wt := range wts {
+		registered = registered || pathx.Same(wt.Path, f.wt("pay", "legacy"))
+	}
+	if !registered {
+		t.Fatalf("worktree not registered at new path: %+v", wts)
 	}
 	// destination already occupied
 	if rs := ops.Add(f.ws, "pay", f.repos("legacy"), ops.AddOptions{Orphan: f.wt("pay", "legacy")}); rs[0].Err == nil {

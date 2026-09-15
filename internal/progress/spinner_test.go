@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
 
 const clear = "\r\x1b[2K"
@@ -88,6 +89,21 @@ func TestLineTruncatedToWidth(t *testing.T) {
 	got := s.line()
 	if len(got) != 19 || !strings.HasSuffix(got, "...") {
 		t.Fatalf("got %q (len %d)", got, len(got))
+	}
+}
+
+func TestLineTruncatedToWidthMultiByte(t *testing.T) {
+	s := New(&bytes.Buffer{}, 20)
+	s.Begin(strings.Repeat("é", 40))
+	got := s.line()
+	if !utf8.ValidString(got) {
+		t.Fatalf("got invalid UTF-8: %q", got)
+	}
+	if n := utf8.RuneCountInString(got); n != 19 {
+		t.Fatalf("got rune count %d, want 19 (%q)", n, got)
+	}
+	if !strings.HasSuffix(got, "...") {
+		t.Fatalf("got %q, want suffix \"...\"", got)
 	}
 }
 

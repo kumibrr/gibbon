@@ -156,11 +156,11 @@ func (s *Spinner) line() string {
 		text += fmt.Sprintf(" (+%d more)", extra)
 	}
 	limit := s.width - 1
-	if len(text) > limit {
+	if runes := []rune(text); len(runes) > limit {
 		if limit > 3 {
-			text = text[:limit-3] + "..."
+			text = string(runes[:limit-3]) + "..."
 		} else {
-			text = text[:limit]
+			text = string(runes[:limit])
 		}
 	}
 	return text

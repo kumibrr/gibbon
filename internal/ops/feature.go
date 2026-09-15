@@ -18,6 +18,7 @@ type CreateFeatureOptions struct {
 	From           string // copy the repo set of this feature
 	BranchTemplate string // per-feature override of the branch template
 	Workers        int
+	Progress       Progress // optional; forwarded to Add
 }
 
 // CreateFeature creates the feature directory and metadata. With From set,
@@ -54,7 +55,7 @@ func CreateFeature(ws *workspace.Workspace, name string, o CreateFeatureOptions)
 	if len(fromRepos) == 0 {
 		return nil, nil
 	}
-	return Add(ws, name, fromRepos, AddOptions{Workers: o.Workers}), nil
+	return Add(ws, name, fromRepos, AddOptions{Workers: o.Workers, Progress: o.Progress}), nil
 }
 
 // FeatureSummary is one row of the feature list.
@@ -173,7 +174,7 @@ func PlanPrune(ws *workspace.Workspace, feature string, workers int) (PrunePlan,
 
 // ExecutePrune removes every worktree and branch in the plan, then the
 // feature directory and metadata. It refuses a blocked plan unless force.
-func ExecutePrune(ws *workspace.Workspace, plan PrunePlan, force bool, workers int) ([]Result, error) {
+func ExecutePrune(ws *workspace.Workspace, plan PrunePlan, force bool, workers int, p Progress) ([]Result, error) {
 	if plan.Blocked && !force {
 		return nil, fmt.Errorf("feature %q has blockers; re-run with --force to prune anyway", plan.Feature)
 	}
@@ -181,7 +182,7 @@ func ExecutePrune(ws *workspace.Workspace, plan PrunePlan, force bool, workers i
 	for _, c := range plan.Checks {
 		repos = append(repos, discover.Repo{ID: c.Repo, Path: ws.RepoBaseDir(c.Repo)})
 	}
-	results := Remove(ws, plan.Feature, repos, RmOptions{DeleteBranch: true, Force: true, KeepDir: true, Workers: workers})
+	results := Remove(ws, plan.Feature, repos, RmOptions{DeleteBranch: true, Force: true, KeepDir: true, Workers: workers, Progress: p})
 	if AnyFailed(results) && !force {
 		return results, fmt.Errorf("some repos could not be removed; feature directory kept")
 	}

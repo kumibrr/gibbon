@@ -177,7 +177,7 @@ func (a *app) featPruneCmd() *cobra.Command {
 				}
 				return fmt.Errorf("feature %q has blockers; nothing was removed (use --force to override)", feature)
 			}
-			rs, execErr := ops.ExecutePrune(ws, plan, force, workers)
+			rs, execErr := ops.ExecutePrune(ws, plan, force, workers, nil)
 			if asJSON {
 				output.JSON(a.out, map[string]any{"plan": plan, "results": rs, "error": errString(execErr)})
 			} else if len(rs) > 0 {

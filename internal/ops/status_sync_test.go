@@ -52,11 +52,13 @@ func TestSync(t *testing.T) {
 	testutil.Git(t, f.ws.RepoBaseDir("off"), "checkout", "-qb", "other")
 	testutil.Commit(t, f.ws.RepoBaseDir("ahead"), "local.txt", "x", "local")
 
-	rs, err := ops.Sync(f.ws, ops.SyncOptions{Prune: true, Workers: 4})
+	rec := &recProgress{}
+	rs, err := ops.Sync(f.ws, ops.SyncOptions{Prune: true, Workers: 4, Progress: rec})
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.mustOK(rs)
+	assertProgress(t, rec, 4, "ff", "dirty", "off", "ahead")
 	by := map[string]string{}
 	for _, r := range rs {
 		by[r.Repo] = r.Action

@@ -82,6 +82,13 @@ There is no PowerShell or cmd wrapper yet.
 Global: `-j N` sets parallelism (default from config, 8). Cross-repo commands
 run every repo, print a table, and exit non-zero if any repo failed.
 
+When stdout is a terminal, `init`, `feat -c`, `add`, `rm`, `sync` and
+`feat prune` show a live status line with the repos being worked on and
+stream warnings (`warn`) and failures (`fail`) as they happen. With four
+repos or fewer each completion is printed; above that only a summary line
+is printed at the end. When piped, or with `--json`, output is the usual
+table or JSON and nothing is streamed.
+
 ## Configuration
 
 `.gibbon/config.toml`:

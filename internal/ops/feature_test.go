@@ -46,11 +46,13 @@ func TestCreateFeatureFrom(t *testing.T) {
 	f.mustOK(ops.Add(f.ws, "old", f.repos("api/users", "web"), ops.AddOptions{}))
 	testutil.Commit(t, f.wt("old", "web"), "wip.txt", "x", "wip")
 
-	rs, err := ops.CreateFeature(f.ws, "new", ops.CreateFeatureOptions{From: "old"})
+	rec := &recProgress{}
+	rs, err := ops.CreateFeature(f.ws, "new", ops.CreateFeatureOptions{From: "old", Progress: rec})
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.mustOK(rs)
+	assertProgress(t, rec, 2, "api/users", "web")
 	if len(rs) != 2 || !exists(f.wt("new", "api/users")) || !exists(f.wt("new", "web")) || exists(f.wt("new", "api/billing")) {
 		t.Fatalf("repo set not copied: %+v", rs)
 	}
@@ -88,11 +90,13 @@ func TestPrune(t *testing.T) {
 	if err != nil || plan.Blocked {
 		t.Fatalf("%+v %v", plan, err)
 	}
-	rs, err := ops.ExecutePrune(f.ws, plan, false, 4)
+	rec := &recProgress{}
+	rs, err := ops.ExecutePrune(f.ws, plan, false, 4, rec)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.mustOK(rs)
+	assertProgress(t, rec, 2, "api/users", "web")
 	if f.ws.FeatureExists("pay") || f.ws.HasFeatureMeta("pay") || git.BranchExists(f.ws.RepoBaseDir("web"), "pay") {
 		t.Fatal("prune left things behind")
 	}
@@ -123,13 +127,13 @@ func TestPruneBlockers(t *testing.T) {
 	if c := plan.Checks[2]; strings.Contains(strings.Join(c.Blockers, ";"), "not pushed") {
 		t.Errorf("c is pushed; got %v", c.Blockers)
 	}
-	if _, err := ops.ExecutePrune(f.ws, plan, false, 4); err == nil {
+	if _, err := ops.ExecutePrune(f.ws, plan, false, 4, nil); err == nil {
 		t.Fatal("blocked plan executed without force")
 	}
 	if !f.ws.FeatureExists("pay") {
 		t.Fatal("refused prune must not touch anything")
 	}
-	rs, err := ops.ExecutePrune(f.ws, plan, true, 4)
+	rs, err := ops.ExecutePrune(f.ws, plan, true, 4, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +176,7 @@ func TestPruneFromInsideFeature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ops.ExecutePrune(f.ws, plan, false, 2); err != nil {
+	if _, err := ops.ExecutePrune(f.ws, plan, false, 2, nil); err != nil {
 		t.Fatal(err)
 	}
 	if testutil.Exists(f.ws.FeatureDir("pay")) {

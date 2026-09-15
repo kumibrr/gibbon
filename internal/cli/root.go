@@ -100,12 +100,18 @@ func (a *app) currentFeature(ws *workspace.Workspace, flag string) (string, erro
 }
 
 // printResults renders per-repo results and returns errFailed if any failed.
-func (a *app) printResults(rs []ops.Result, asJSON bool) error {
-	if asJSON {
+// When p is non-nil the results were already streamed live, so only the
+// summary is printed and the table is skipped.
+func (a *app) printResults(rs []ops.Result, asJSON bool, p *reporter) error {
+	switch {
+	case asJSON:
 		if err := output.JSON(a.out, rs); err != nil {
 			return err
 		}
-	} else if len(rs) > 0 {
+	case p != nil && !p.sawResults() && len(rs) > 0:
+		p.stop()
+		fallthrough
+	case p == nil && len(rs) > 0:
 		rows := make([][]string, 0, len(rs))
 		for _, r := range rs {
 			detail := ""
@@ -123,6 +129,8 @@ func (a *app) printResults(rs []ops.Result, asJSON bool) error {
 			rows = append(rows, []string{r.Repo, action, detail})
 		}
 		output.Table(a.out, a.colour, []string{"REPO", "ACTION", "DETAIL"}, rows)
+	case p != nil:
+		p.finish()
 	}
 	if ops.AnyFailed(rs) {
 		return errFailed

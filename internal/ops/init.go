@@ -19,6 +19,14 @@ import (
 type InitOptions struct {
 	// BaseBranch, when set, is recorded for every repo instead of detecting.
 	BaseBranch string
+	// Progress, when set, receives per-repo events.
+	Progress Progress
+}
+
+// warn records an operation-level warning in the report and reports it.
+func (pg notify) warn(rep *InitReport, msg string) {
+	rep.Warnings = append(rep.Warnings, msg)
+	pg.Warn(msg)
 }
 
 // InitReport describes what Init did.
@@ -69,6 +77,9 @@ func Init(root string, o InitOptions) (rep InitReport, err error) {
 		}
 	}
 
+	pg := notify{o.Progress}
+	pg.Plan(len(w.Repos))
+
 	// From here on, any failure needs to unwind whatever's already moved.
 	var moved []movedRepo
 	defer func() {
@@ -91,13 +102,16 @@ func Init(root string, o InitOptions) (rep InitReport, err error) {
 	// Move sequentially; stop at the first failure.
 	cfg := workspace.DefaultConfig()
 	for _, r := range w.Repos {
+		pg.Start(r.ID)
 		dest := ws.RepoBaseDir(r.ID)
 		if mkErr := os.MkdirAll(filepath.Dir(dest), 0o755); mkErr != nil {
 			err = fmt.Errorf("%s: %w", r.ID, mkErr)
+			pg.Finish(result(r.ID, "", err))
 			return rep, err
 		}
 		if renErr := os.Rename(r.Path, dest); renErr != nil {
 			err = fmt.Errorf("%s: %w", r.ID, renErr)
+			pg.Finish(result(r.ID, "", err))
 			return rep, err
 		}
 		moved = append(moved, movedRepo{id: r.ID, orig: r.Path, dest: dest})
@@ -117,21 +131,21 @@ func Init(root string, o InitOptions) (rep InitReport, err error) {
 			cfg.Repos[r.ID] = workspace.RepoConfig{BaseBranch: base}
 		}
 		if dirty, _ := git.IsDirty(dest); dirty {
-			rep.Warnings = append(rep.Warnings, r.ID+": has uncommitted changes")
+			pg.warn(&rep, r.ID+": has uncommitted changes")
 		}
 		if cur, _ := git.CurrentBranch(dest); base != "" && cur != base {
 			shown := cur
 			if shown == "" {
 				shown = "detached HEAD"
 			}
-			rep.Warnings = append(rep.Warnings, fmt.Sprintf("%s: on %s, base branch is %s", r.ID, shown, base))
+			pg.warn(&rep, fmt.Sprintf("%s: on %s, base branch is %s", r.ID, shown, base))
 		}
-		rep.Moved = append(rep.Moved, result(r.ID, "moved", nil, warnings...))
+		rep.Moved = append(rep.Moved, pg.Finish(result(r.ID, "moved", nil, warnings...)))
 	}
 
 	// Remove group folders that are now empty.
 	if err := removeEmptyDirs(root, ws.BaseDir()); err != nil {
-		rep.Warnings = append(rep.Warnings, "cleanup: "+err.Error())
+		pg.warn(&rep, "cleanup: "+err.Error())
 	}
 
 	if saveErr := ws.SaveConfig(cfg); saveErr != nil {

@@ -17,8 +17,10 @@ func TestAddBranchSources(t *testing.T) {
 	// remote-only branch
 	f.pushFromOther("remote", "pay", "r.txt")
 
-	rs := ops.Add(f.ws, "pay", f.repos("fresh", "local", "remote"), ops.AddOptions{Workers: 3})
+	rec := &recProgress{}
+	rs := ops.Add(f.ws, "pay", f.repos("fresh", "local", "remote"), ops.AddOptions{Workers: 3, Progress: rec})
 	f.mustOK(rs)
+	assertProgress(t, rec, 3, "fresh", "local", "remote")
 	actions := map[string]string{}
 	for _, r := range rs {
 		actions[r.Repo] = r.Action
@@ -63,12 +65,17 @@ func TestAddFailuresDoNotAbortOthers(t *testing.T) {
 	f.feature("pay")
 	// stray unregistered dir for a
 	testutil.WriteFile(t, f.wt("pay", "a")+"/x", "x")
-	rs := ops.Add(f.ws, "pay", f.repos("a", "b"), ops.AddOptions{})
+	rec := &recProgress{}
+	rs := ops.Add(f.ws, "pay", f.repos("a", "b"), ops.AddOptions{Progress: rec})
 	if rs[0].Err == nil || rs[1].Err != nil || rs[1].Action != "created" {
 		t.Fatalf("%+v", rs)
 	}
 	if !ops.AnyFailed(rs) {
 		t.Fatal("AnyFailed")
+	}
+	failingID := "a"
+	if rec.index("finish "+failingID+" err") < 0 {
+		t.Fatalf("expected an error finish for %s: %v", failingID, rec.events)
 	}
 	if rs := ops.Add(f.ws, "ghost", f.repos("a"), ops.AddOptions{}); !ops.AnyFailed(rs) {
 		t.Fatal("missing feature accepted")
@@ -81,8 +88,10 @@ func TestRemoveKeepsBranch(t *testing.T) {
 	f.mustOK(ops.Add(f.ws, "pay", f.repos("grp/a", "b"), ops.AddOptions{}))
 	testutil.Commit(t, f.wt("pay", "grp/a"), "a.txt", "x", "unpushed work")
 
-	rs := ops.Remove(f.ws, "pay", f.repos("grp/a"), ops.RmOptions{})
+	rec := &recProgress{}
+	rs := ops.Remove(f.ws, "pay", f.repos("grp/a"), ops.RmOptions{Progress: rec})
 	f.mustOK(rs)
+	assertProgress(t, rec, 1, "grp/a")
 	if rs[0].Action != "removed" {
 		t.Fatalf("%+v", rs[0])
 	}

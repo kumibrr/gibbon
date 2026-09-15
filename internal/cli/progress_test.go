@@ -56,6 +56,16 @@ func TestReporterFailureLine(t *testing.T) {
 	}
 }
 
+func TestReporterFailureLineKeepsWarnings(t *testing.T) {
+	r, buf := newTestReporter()
+	r.Plan(1)
+	r.Finish(ops.Result{Repo: "a", Err: errors.New("boom"), Warnings: []string{"fetch failed: timeout"}})
+	r.finish()
+	if got := lines(buf); len(got) != 1 || got[0] != "fail  a: boom (warnings: fetch failed: timeout)" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestReporterSummaryAboveFour(t *testing.T) {
 	r, buf := newTestReporter()
 	r.Plan(5)

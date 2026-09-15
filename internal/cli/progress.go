@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"sort"
 	"sync"
 
 	"github.com/kumibrr/gibbon/internal/ops"
@@ -109,6 +108,8 @@ func (r *reporter) Finish(res ops.Result) {
 	r.mu.Unlock()
 
 	switch {
+	case res.Err != nil && len(res.Warnings) > 0:
+		r.sp.Log(r.marker("fail") + r.colour.Red(res.Repo+": "+res.Err.Error()+" (warnings: "+joinWarnings(res.Warnings)+")"))
 	case res.Err != nil:
 		r.sp.Log(r.marker("fail") + r.colour.Red(res.Repo+": "+res.Err.Error()))
 	case len(res.Warnings) > 0:
@@ -163,10 +164,8 @@ func (r *reporter) verb() string {
 	if len(r.actions) != 1 {
 		return "done"
 	}
-	keys := make([]string, 0, 1)
 	for k := range r.actions {
-		keys = append(keys, k)
+		return k
 	}
-	sort.Strings(keys)
-	return keys[0]
+	return "done"
 }

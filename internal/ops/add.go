@@ -14,8 +14,9 @@ import (
 
 // AddOptions configures Add.
 type AddOptions struct {
-	Branch  string // overrides the feature's branch template for this call
-	Workers int
+	Branch   string // overrides the feature's branch template for this call
+	Workers  int
+	Progress Progress // optional; receives per-repo events
 }
 
 // Add creates a worktree of each repo inside the feature. Per repo it fetches
@@ -48,11 +49,14 @@ func Add(ws *workspace.Workspace, feature string, repos []discover.Repo, o AddOp
 	for i, r := range repos {
 		jobs[i] = job{r, bases[i], baseErr[i]}
 	}
+	pg := notify{o.Progress}
+	pg.Plan(len(repos))
 	return pool.Map(jobs, o.Workers, func(j job) Result {
+		pg.Start(j.repo.ID)
 		if j.err != nil {
-			return result(j.repo.ID, "", j.err)
+			return pg.Finish(result(j.repo.ID, "", j.err))
 		}
-		return addOne(ws, feature, j.repo, branch, j.base)
+		return pg.Finish(addOne(ws, feature, j.repo, branch, j.base))
 	})
 }
 

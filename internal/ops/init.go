@@ -31,10 +31,11 @@ type InitReport struct {
 
 // Init converts a plain directory of repos into a gibbon workspace by moving
 // every repo under base/ and writing the initial config. It refuses to run if
-// .gibbon exists, base/ is non-empty, or a repo is named "base".
-func Init(root string, o InitOptions) (InitReport, error) {
-	var rep InitReport
-	root, err := filepath.Abs(root)
+// .gibbon exists, base/ is non-empty, or a repo is named "base". If anything
+// fails partway through, it rolls back: repos already moved are put back and
+// any directories Init created (base/, .gibbon/) are removed.
+func Init(root string, o InitOptions) (rep InitReport, err error) {
+	root, err = filepath.Abs(root)
 	if err != nil {
 		return rep, err
 	}
@@ -43,8 +44,12 @@ func Init(root string, o InitOptions) (InitReport, error) {
 	if _, err := os.Stat(ws.GibbonDir()); err == nil {
 		return rep, fmt.Errorf("%s already exists; this directory is already a gibbon workspace", ws.GibbonDir())
 	}
-	if entries, err := os.ReadDir(ws.BaseDir()); err == nil && len(entries) > 0 {
-		return rep, fmt.Errorf("%s exists and is not empty; move or remove it first", ws.BaseDir())
+	baseExisted := false
+	if entries, err := os.ReadDir(ws.BaseDir()); err == nil {
+		baseExisted = true
+		if len(entries) > 0 {
+			return rep, fmt.Errorf("%s exists and is not empty; move or remove it first", ws.BaseDir())
+		}
 	}
 	if git.IsRepo(ws.BaseDir()) {
 		return rep, fmt.Errorf("a repo named %q sits at the workspace root; rename it first", workspace.BaseDirName)
@@ -64,16 +69,38 @@ func Init(root string, o InitOptions) (InitReport, error) {
 		}
 	}
 
+	// From here on, any failure needs to unwind whatever's already moved.
+	var moved []movedRepo
+	defer func() {
+		if err == nil {
+			return
+		}
+		problems := rollbackInit(ws, moved, baseExisted)
+		rep.Moved = nil
+		rep.Warnings = nil
+		ids := make([]string, len(w.Repos))
+		for i, r := range w.Repos {
+			ids[i] = r.ID
+		}
+		rep.NotMoved = ids
+		if len(problems) > 0 {
+			err = fmt.Errorf("%w (rollback incomplete, needs manual attention: %s)", err, strings.Join(problems, "; "))
+		}
+	}()
+
 	// Move sequentially; stop at the first failure.
 	cfg := workspace.DefaultConfig()
-	for i, r := range w.Repos {
+	for _, r := range w.Repos {
 		dest := ws.RepoBaseDir(r.ID)
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return failInit(rep, w.Repos[i:], fmt.Errorf("%s: %w", r.ID, err))
+		if mkErr := os.MkdirAll(filepath.Dir(dest), 0o755); mkErr != nil {
+			err = fmt.Errorf("%s: %w", r.ID, mkErr)
+			return rep, err
 		}
-		if err := os.Rename(r.Path, dest); err != nil {
-			return failInit(rep, w.Repos[i:], fmt.Errorf("%s: %w", r.ID, err))
+		if renErr := os.Rename(r.Path, dest); renErr != nil {
+			err = fmt.Errorf("%s: %w", r.ID, renErr)
+			return rep, err
 		}
+		moved = append(moved, movedRepo{id: r.ID, orig: r.Path, dest: dest})
 		var warnings []string
 		if err := repairMovedWorktrees(r.Path, dest); err != nil {
 			warnings = append(warnings, "worktree repair: "+err.Error())
@@ -107,21 +134,56 @@ func Init(root string, o InitOptions) (InitReport, error) {
 		rep.Warnings = append(rep.Warnings, "cleanup: "+err.Error())
 	}
 
-	if err := ws.SaveConfig(cfg); err != nil {
+	if saveErr := ws.SaveConfig(cfg); saveErr != nil {
+		err = saveErr
 		return rep, err
 	}
-	if err := os.MkdirAll(ws.FeaturesDir(), 0o755); err != nil {
+	if mkErr := os.MkdirAll(ws.FeaturesDir(), 0o755); mkErr != nil {
+		err = mkErr
 		return rep, err
 	}
 	sort.Strings(rep.Warnings)
 	return rep, nil
 }
 
-func failInit(rep InitReport, remaining []discover.Repo, err error) (InitReport, error) {
-	for _, r := range remaining {
-		rep.NotMoved = append(rep.NotMoved, r.ID)
+// movedRepo records a repo's original and post-move location so a failed
+// Init can put it back.
+type movedRepo struct {
+	id, orig, dest string
+}
+
+// rollbackInit undoes partially completed moves after an Init failure: it
+// restores repos to their original locations, repairs their worktree links
+// back, and removes directories Init created (base/, .gibbon/). It returns a
+// description of any repo it could not restore, best-effort.
+func rollbackInit(ws *workspace.Workspace, moved []movedRepo, baseExisted bool) []string {
+	var problems []string
+	for i := len(moved) - 1; i >= 0; i-- {
+		m := moved[i]
+		if err := os.MkdirAll(filepath.Dir(m.orig), 0o755); err != nil {
+			problems = append(problems, fmt.Sprintf("%s: %v", m.id, err))
+			continue
+		}
+		if err := os.Rename(m.dest, m.orig); err != nil {
+			problems = append(problems, fmt.Sprintf("%s: %v", m.id, err))
+			continue
+		}
+		if err := repairMovedWorktrees(m.dest, m.orig); err != nil {
+			problems = append(problems, fmt.Sprintf("%s: worktree repair: %v", m.id, err))
+		}
 	}
-	return rep, err
+	if entries, err := os.ReadDir(ws.BaseDir()); err == nil {
+		for _, e := range entries {
+			_ = pruneEmpty(filepath.Join(ws.BaseDir(), e.Name()))
+		}
+		if !baseExisted {
+			if entries, err := os.ReadDir(ws.BaseDir()); err == nil && len(entries) == 0 {
+				os.Remove(ws.BaseDir())
+			}
+		}
+	}
+	os.RemoveAll(ws.GibbonDir())
+	return problems
 }
 
 // removeEmptyDirs removes empty non-dot directories under root, never

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -83,6 +84,52 @@ func TestInitBaseBranchFlag(t *testing.T) {
 	cfg, _ := workspace.New(root).LoadConfig()
 	if cfg.Repos["a"].BaseBranch != "release" {
 		t.Fatalf("%+v", cfg)
+	}
+}
+
+func TestInitRollsBackOnMidLoopFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// NTFS ignores the read-only attribute for directories: os.Chmod
+		// can't make a directory's contents unwritable the way Unix
+		// permission bits do, so this failure can't be induced here.
+		t.Skip("directory write-protection isn't expressible on Windows")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	root := t.TempDir()
+	testutil.NewRepo(t, filepath.Join(root, "a"), "main")
+	testutil.NewRepo(t, filepath.Join(root, "grpB", "y"), "main")
+
+	grpB := filepath.Join(root, "grpB")
+	if err := os.Chmod(grpB, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(grpB, 0o755) })
+
+	rep, err := ops.Init(root, ops.InitOptions{})
+	if err == nil {
+		t.Fatalf("expected failure, got report %+v", rep)
+	}
+
+	// The repo that moved first ("a") must be restored to its original path.
+	if !git.IsRepo(filepath.Join(root, "a")) {
+		t.Error("repo 'a' was not rolled back to its original location")
+	}
+	// The repo that never moved ("grpB/y") must still be where it was.
+	if !git.IsRepo(filepath.Join(root, "grpB", "y")) {
+		t.Error("repo 'grpB/y' unexpectedly moved")
+	}
+	// base/ was created fresh by this run, so it must be removed entirely.
+	if testutil.Exists(filepath.Join(root, "base")) {
+		t.Error("base/ was not cleaned up after rollback")
+	}
+	// .gibbon must not exist since Init never got far enough to write config.
+	if testutil.Exists(filepath.Join(root, ".gibbon")) {
+		t.Error(".gibbon left behind after rollback")
+	}
+	if len(rep.Moved) != 0 {
+		t.Errorf("expected no moved repos reported, got %+v", rep.Moved)
 	}
 }
 

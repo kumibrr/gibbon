@@ -8,25 +8,40 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+
+	"golang.org/x/term"
 )
 
 // Colour decides whether ANSI colours are emitted.
 type Colour bool
+
+// IsTerminal reports whether w is a character device (an interactive
+// terminal). Anything that is not an *os.File is never a terminal.
+func IsTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
+}
+
+// TerminalWidth returns the column count of the terminal behind w, or 0
+// when w is not a terminal or the size cannot be determined.
+func TerminalWidth(w io.Writer) int {
+	f, ok := w.(*os.File)
+	if !ok {
+		return 0
+	}
+	cols, _, err := term.GetSize(int(f.Fd()))
+	if err != nil || cols <= 0 {
+		return 0
+	}
+	return cols
+}
 
 // DetectColour enables colour when w is a terminal and NO_COLOR is unset.
 func DetectColour(w io.Writer) Colour {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	fi, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
+	return Colour(IsTerminal(w))
 }
 
 func (c Colour) wrap(code, s string) string {

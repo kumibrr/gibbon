@@ -27,12 +27,16 @@ type workspaceLike interface{ BaseDir() string }
 
 func (a *app) addCmd() *cobra.Command {
 	var all, asJSON bool
-	var branch, feature string
+	var branch, feature, orphan string
 	cmd := &cobra.Command{
-		Use:   "add REPO... [--all]",
+		Use:   "add REPO... [--all] | add REPO --orphan PATH",
 		Short: "Add repos to the current feature as worktrees",
 		Long: `Add repos to the current feature. REPO may be a repo id (api/users), a bare
-name when unique (users), a glob (api/*), or a group folder (api/).`,
+name when unique (users), a glob (api/*), or a group folder (api/).
+
+With --orphan PATH, a single REPO is expected and the existing worktree at PATH
+(for example a legacy .worktrees/NAME inside the repo) is moved into the feature
+instead of creating a new one. Uncommitted changes move with it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ws, workers, err := a.workspace()
 			if err != nil {
@@ -48,14 +52,16 @@ name when unique (users), a glob (api/*), or a group folder (api/).`,
 			}
 			p := a.newProgress(asJSON)
 			defer p.stop()
-			rs := ops.Add(ws, feat, repos, ops.AddOptions{Branch: branch, Workers: workers, Progress: p})
+			rs := ops.Add(ws, feat, repos, ops.AddOptions{Branch: branch, Orphan: orphan, Workers: workers, Progress: p})
 			return a.printResults(rs, asJSON, p)
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "add every repo in the workspace")
 	cmd.Flags().StringVar(&branch, "branch", "", "branch name to use instead of the feature's template")
+	cmd.Flags().StringVar(&orphan, "orphan", "", "adopt the existing worktree at this path by moving it into the feature (single REPO only)")
 	cmd.Flags().StringVar(&feature, "feature", "", "target feature (default: the one containing the current directory)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print as JSON")
+	cmd.MarkFlagsMutuallyExclusive("orphan", "all")
 	return cmd
 }
 

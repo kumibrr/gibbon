@@ -73,6 +73,7 @@ There is no PowerShell or cmd wrapper yet.
 | `gibbon feat switch NAME` | cd to a feature, or to `base`. |
 | `gibbon feat prune [NAME] [--force]` | Remove a feature: worktrees, branches, directory, metadata. Refuses on uncommitted, unpushed or unmerged work. |
 | `gibbon add REPO... [--all] [--branch B] [--feature F]` | Add repos to the current feature. `REPO` is an id (`api/users`), a unique bare name (`users`), a glob (`api/*`) or a group (`api/`). Reuses a local branch, tracks a remote one, or branches from base. |
+| `gibbon add REPO --orphan PATH` | Adopt an existing worktree of `base/REPO` (for example a legacy `.worktrees/NAME`) by moving it into the feature. Uncommitted changes move with it. One repo per call. |
 | `gibbon rm REPO... [--delete-branch] [--force]` | Remove repos from the feature. Keeps branches unless `--delete-branch`. |
 | `gibbon status [--all] [--json]` | Per repo: branch, ahead/behind base and upstream, dirty, drift flags. |
 | `gibbon sync [--prune]` | Fetch every base clone; fast-forward base branches that are clean and checked out. |

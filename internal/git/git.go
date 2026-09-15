@@ -246,6 +246,12 @@ func WorktreeRemove(dir, path string, force bool) error {
 	return err
 }
 
+// WorktreeMove relocates a registered worktree to a new path.
+func WorktreeMove(dir, from, to string) error {
+	_, err := Run(dir, "worktree", "move", from, to)
+	return err
+}
+
 // WorktreePrune drops registrations whose directories are gone.
 func WorktreePrune(dir string) error {
 	_, err := Run(dir, "worktree", "prune")

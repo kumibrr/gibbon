@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -87,6 +88,12 @@ func TestInitBaseBranchFlag(t *testing.T) {
 }
 
 func TestInitRollsBackOnMidLoopFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// NTFS ignores the read-only attribute for directories: os.Chmod
+		// can't make a directory's contents unwritable the way Unix
+		// permission bits do, so this failure can't be induced here.
+		t.Skip("directory write-protection isn't expressible on Windows")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("root ignores directory permissions")
 	}

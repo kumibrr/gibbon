@@ -29,3 +29,23 @@ jobs:
             --generate-notes \
             --verify-tag \
             dist/*.zip dist/*.tar.gz dist/checksums.txt
+
+  windows-installer:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet tool install --global wix --version "5.*"
+      - run: Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.dotnet\tools"
+      - name: Build MSI installers
+        run: scripts/build-msi.ps1 -Version "${env:GITHUB_REF_NAME}"
+      - name: Attach installers to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${env:GITHUB_REF_NAME}" dist/*.msi dist/checksums-msi.txt

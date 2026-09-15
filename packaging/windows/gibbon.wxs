@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Per-user MSI installer for gibbon. Built with WiX v5 (`wix build`), which
+  only runs on Windows, so this is built on a windows-latest GitHub Actions
+  runner (see .github/workflows/release.yml).
+
+  Installs gibbon.exe under %LocalAppData%\Programs\gibbon and adds that
+  folder to the user's PATH. No admin rights required.
+
+  Pass -d Version=X.Y.Z and -d ExePath=<path to gibbon.exe> on the command
+  line; see scripts/build-msi.ps1.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="gibbon"
+           Manufacturer="kumibrr"
+           Version="$(var.Version)"
+           UpgradeCode="df0cbf3f-52dc-4670-846b-a0eba6deb5ee"
+           Scope="perUser">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of gibbon is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="Programs">
+        <Directory Id="GibbonFolder" Name="gibbon" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="MainGroup" />
+    </Feature>
+
+    <ComponentGroup Id="MainGroup" Directory="GibbonFolder">
+      <Component Id="GibbonExe" Guid="e3565ad1-777b-45ff-958b-964c9296c6f5">
+        <File Id="GibbonExeFile" Source="$(var.ExePath)" KeyPath="yes" />
+        <Environment Id="AddToPath"
+                     Name="PATH"
+                     Value="[GibbonFolder]"
+                     Permanent="no"
+                     Part="last"
+                     Action="set"
+                     System="no" />
+      </Component>
+    </ComponentGroup>
+  </Package>
+</Wix>

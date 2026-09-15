@@ -32,6 +32,10 @@ Download the archive for your platform from the
 `checksums.txt`, and put the binary on your PATH. Builds are published for
 Windows, Linux and macOS on amd64 and arm64. Check with `gibbon --version`.
 
+On Windows you can instead download the `.msi` installer, which installs
+`gibbon.exe` under `%LocalAppData%\Programs\gibbon` and adds it to your PATH
+(verify it against `checksums-msi.txt`). No admin rights required.
+
 ### From source
 
 Go is pinned in `.mise.toml`.
@@ -45,7 +49,8 @@ make dist               # cross-compile every platform into dist/
 ### Releasing
 
 Push a tag like `v1.2.0`. The `Release` workflow runs the tests, builds every
-platform, and publishes a GitHub release with archives and checksums. The `CI`
+platform, builds the Windows `.msi` installers, and publishes a GitHub release
+with archives, installers and checksums. The `CI`
 workflow runs vet, tests and gofmt on Windows, Linux and macOS for every push
 and pull request.
 

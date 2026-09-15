@@ -39,20 +39,21 @@ When stdout is a terminal and `--json` is not set:
   fail  api/orders: rename: permission denied
   ```
 
-  Markers are `ok`, `warn`, `fail`, padded to 6 columns, coloured green,
-  yellow, red respectively via the existing `output.Colour`.
+  Markers are `warn` and `fail`, padded to 6 columns, coloured yellow and
+  red respectively via the existing `output.Colour`. There is no `ok`
+  marker: clean lines are printed unprefixed.
 
-- A repo that finishes cleanly prints `ok    api/users moved` only when the
+- A repo that finishes cleanly prints `api/users moved` only when the
   operation covers 4 or fewer repos. For 5 or more, clean completions are
   silent and one summary line prints after the spinner stops:
 
   ```
-  ok    12 repos moved
-  ok    10 of 12 repos moved, 2 failed
+  12 repos moved
+  fail  10 of 12 repos moved, 2 failed
   ```
 
-  The marker of the summary line is `fail` if any repo failed, `warn` if
-  none failed but some warned, else `ok`. The verb is the most common
+  The summary line carries the `fail` marker if any repo failed, `warn` if
+  none failed but some warned, and no marker otherwise. The verb is the most common
   action word among the results (`moved`, `added`, `removed`, `fetched`,
   ...); when actions differ, the line reads `12 repos done`.
 
@@ -133,7 +134,7 @@ The package knows nothing about repos or gibbon; it is a generic
 ### CLI reporter (internal/cli/progress.go)
 
 `type reporter struct` implements `ops.Progress` on top of a `*progress.Spinner`
-and `output.Colour`. It counts total/failed/warned/ok, remembers action
+and `output.Colour`. It counts total/failed/warned, remembers action
 words, and formats lines per the Behaviour section. `finish()` stops the
 spinner and prints the summary line when total > 4.
 
